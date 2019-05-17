@@ -1,0 +1,197 @@
+
+/*  Becca Kheiry
+ *   ECE387 Individual Final
+ *   Workout tracker using pulse and muscle sensors
+ *   Use Serial Monitor to use program
+ *   Tutorial Webpage: https://pulsesensor.com/pages/getting-advanced
+--------------------------------------------------------------------*/
+
+#define USE_ARDUINO_INTERRUPTS true    // Set-up low-level interrupts for most accurate BPM math.
+#include <PulseSensorPlayground.h>     // Includes the PulseSensorPlayground Library.   
+
+//  Variables
+const int PULSE_INPUT = A1;       // PulseSensor PURPLE WIRE connected to ANALOG PIN 1
+int Threshold = 550;           // Determine which Signal to "count as a beat" and which to ignore.
+const int LED13 = 13;
+                               // Use the "Gettting Started Project" to fine-tune Threshold Value beyond default setting.
+                               // Otherwise leave the default "550" value. 
+static const unsigned long REFRESH_INTERVAL = 1000;
+static unsigned long lastRefreshTime = 0;
+static unsigned long workoutTime = 0;
+int myoSensorValue;
+float myoVoltage;
+int choice = 0;
+int minutes;
+int countBPMreadings = 0;
+int countVreadings = 0;
+                               
+PulseSensorPlayground pulseSensor;  // Creates an instance of the PulseSensorPlayground object called "pulseSensor"
+
+
+void setup() {   
+
+  Serial.begin(9600);
+
+  // Configure the PulseSensor object, by assigning our variables to it. 
+  pulseSensor.analogInput(PULSE_INPUT);   
+  pulseSensor.blinkOnPulse(LED13);       //blink Arduino's LED with heartbeat.
+  pulseSensor.setThreshold(Threshold);   
+
+  // Double-check the "pulseSensor" object was created and "began" seeing a signal. 
+   //if (pulseSensor.begin()) {
+   // Serial.println("We created a pulseSensor Object !");  //This prints one time at Arduino power-up,  or on Arduino reset.  
+  //}
+
+  Serial.println("");
+  Serial.println("Welcome! Please select a workout type!");
+  Serial.println("Press '1' for cardio");
+  Serial.println("Press '2' for strength");
+  Serial.println("Press '3' for freestyle");
+
+  
+}
+
+float checkMuscle() {
+  //if(millis() - lastRefreshTime >= REFRESH_INTERVAL)
+    //{
+      //lastRefreshTime = millis();
+      myoSensorValue = analogRead(A0);
+      // Convert the analog reading (which goes from 0 - 1023) to a voltage (0 - 5V):
+      myoVoltage = myoSensorValue * (5.0 / 1023.0);
+      //Serial.print("Muscle voltage: ");
+      //Serial.println(myoVoltage);
+    //}
+    return myoVoltage;
+}
+
+
+int checkBPM() {
+  int myBPM = pulseSensor.getBeatsPerMinute(); 
+  Serial.println("test");
+   if (pulseSensor.sawStartOfBeat()) {            // Test to see if "a beat happened". 
+   Serial.print("BPM: ");                        // Print BPM 
+   Serial.println(myBPM);
+  }
+  delay(20);
+  return myBPM;
+}
+
+
+void cardio() {
+  int age;
+  int maxBPM =0;
+  int avgBPM;
+  int BPM;
+  int muscleV;
+  int maxMuscle =0;
+  int avgVolt;
+  //static unsigned long inRangeTime = 0;
+  //static unsigned long aboveRangeTime = 0;
+  int lowBPM = 0;       // formula for target BPM range for cardio found at 
+  int highBPM;        // https://www.scientificamerican.com/article/cardiovascular-system-science-investigate-heart-rate-recovery-time1/
+
+  Serial.println("");
+  Serial.println("CARDIO");
+  Serial.println("Please enter your age in years");
+  while (Serial.available()) {
+    Serial.read();
+  }
+  while (lowBPM == 0) {
+    if (Serial.available()>0) {
+      age = Serial.parseInt();
+      lowBPM = .5*(220-age);
+      highBPM = .85*(220-age);
+     }
+  }
+  Serial.print("Your target range for BPM is ");
+  Serial.print(lowBPM);
+  Serial.print("-");
+  Serial.println(highBPM);
+
+  Serial.println("Enter any character to begin workout!");
+  Serial.println("Enter '0' once you're ready to end your workout.");
+  while (maxMuscle ==0) {
+    if (Serial.available()) {
+      boolean control = true;
+      while (control) {
+        workoutTime = millis();
+        BPM = checkBPM();
+        Serial.println(BPM);
+        avgBPM += BPM;
+        countBPMreadings++;
+        if (BPM > maxBPM) {
+          maxBPM = BPM;     //record maximum BPM
+        }
+  
+        muscleV = checkMuscle();
+        avgVolt += muscleV;
+        countVreadings++;
+        if (muscleV > maxMuscle) {
+          maxMuscle = muscleV;    //record maximum muscle activation
+        }
+
+        if (Serial.parseInt() == 5) {
+          control = false;
+        }
+      }
+    }
+   }
+
+   avgBPM = avgBPM/countBPMreadings;
+   avgVolt = avgVolt/countVreadings;
+   
+  workoutTime = millis() - workoutTime;
+  minutes = workoutTime / 60000;
+  Serial.print("Your workout time was ");
+  Serial.print(minutes);
+  Serial.println(" minutes");
+  Serial.print("Your average heart rate was ");
+  Serial.print(avgBPM);
+  Serial.println("BPM");
+  Serial.print("Your maximum heart rate was ");
+  Serial.print(maxBPM);
+  Serial.println("BPM");
+  Serial.print("Your average muscle activation was ");
+  Serial.print(avgVolt);
+  Serial.println(" Volts");
+  Serial.print("Your maximum muscle activation was ");
+  Serial.print(maxMuscle);
+  Serial.println(" Volts");
+  delay(20);
+  setup();
+}
+
+void strength() {
+  
+}
+
+void freestyle() {
+  
+}
+
+void loop() {
+  
+  while (choice == 0) {           // Select the type of workout
+    if (Serial.available()>0) {
+    choice = Serial.parseInt();
+    if (choice == 1 || choice == 3 || choice == 2) {
+      Serial.print("Great! You have chosen option ");
+      Serial.println(choice);
+    }
+    else {
+      Serial.println("Please choose one of the stated options");
+      choice = 0;
+    }
+   }
+  }
+
+  if (choice == 1) {
+    cardio();
+  }
+  else if (choice == 2) {
+    strength();
+  }
+  else {
+    freestyle();
+  }
+}
