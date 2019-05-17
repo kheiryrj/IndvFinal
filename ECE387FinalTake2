@@ -1,0 +1,128 @@
+
+/*  Becca Kheiry
+ *  ECE 387 Individual Final
+ *  Pulse sensor Tutorial Webpage: https://pulsesensor.com/pages/getting-advanced
+--------------------------------------------------------------------*/
+
+#define USE_ARDUINO_INTERRUPTS true    // Set-up low-level interrupts for most acurate BPM math.
+#include <PulseSensorPlayground.h>     // Includes the PulseSensorPlayground Library.   
+
+//  Variables
+const int PULSE_INPUT = A1;       // PulseSensor PURPLE WIRE connected to ANALOG PIN 0
+const int LED13 = 13;          // The on-board Arduino LED, close to PIN 13.
+int Threshold = 550;           // Determine which Signal to "count as a beat" and which to ignore.
+int muscle;
+boolean controller = true;
+                               
+PulseSensorPlayground pulseSensor;  // Creates an instance of the PulseSensorPlayground object called "pulseSensor"
+
+
+void setup() {   
+
+  Serial.begin(9600);          // For Serial Monitor
+
+  // Configure the PulseSensor object, by assigning our variables to it. 
+  pulseSensor.analogInput(PULSE_INPUT);   
+  pulseSensor.blinkOnPulse(LED13);       //auto-magically blink Arduino's LED with heartbeat.
+  pulseSensor.setThreshold(Threshold); 
+  pinMode(2, INPUT);
+  pinMode(3, INPUT);
+    
+  if (pulseSensor.begin()) {
+    Serial.println("We created a pulseSensor Object !");  //This prints one time at Arduino power-up,  or on Arduino reset.  
+  }
+}
+
+void cardio() {
+  int maxBPM = 0;
+  int avgBPM = 0;
+  int count = 0;
+  Serial.println("Great! You have chosen CARDIO");
+  delay(2000);
+  Serial.println("Your workout is now being tracked!");
+  Serial.println("Your target range for BPM is 100-150.");
+  while (digitalRead(2) == LOW) {
+    int BPM = pulseSensor.getBeatsPerMinute();
+    avgBPM += BPM;
+    count++;
+    if (BPM > maxBPM) {
+      maxBPM = BPM;     //record maximum BPM
+    }
+  }
+  //Serial.println(avgBPM);
+  //Serial.println(count);
+  avgBPM = avgBPM/count;
+  Serial.print("Your average heart rate was ");
+  Serial.print(avgBPM);
+  Serial.println("BPM");
+  Serial.print("Your maximum heart rate was ");
+  Serial.print(maxBPM);
+  Serial.println("BPM");
+  delay(2000);
+}
+
+void strength() {
+  int maxMuscle = 0;
+  int avgMuscle = 0;
+  int count = 0;
+  
+  Serial.println("Great! You have chosen STRENGTH");
+  delay(2000);
+  Serial.println("Your workout is now being tracked!");
+  while (digitalRead(3) == LOW) {
+    int muscle = analogRead(A0);
+    avgMuscle += muscle;
+    count++;
+    if (muscle > maxMuscle) {
+      maxMuscle = muscle;     //record maximum reading
+    }
+  }
+  Serial.println(avgMuscle);
+  Serial.println(count);
+  avgMuscle = avgMuscle/count;
+  Serial.print("Your average muscle activation out of 1023 was ");
+  Serial.println(avgMuscle);
+  Serial.print("Your maximum muscle activation was ");
+  Serial.println(maxMuscle);
+  delay(2000);
+}
+
+/*
+int getBPM(int maxBPM) {
+  int BPM = pulseSensor.getBeatsPerMinute();  
+  if (BPM > maxBPM) {
+          maxBPM = BPM;     //record maximum BPM
+  }
+  //if (pulseSensor.sawStartOfBeat()) {            // Constantly test to see if "a beat happened". 
+   Serial.print("BPM: ");                        // Print phrase "BPM: " 
+   Serial.println(BPM);                        // Print the value inside of myBPM. 
+  //}
+  return maxBPM;
+}
+
+void getMuscle() {
+  muscle = analogRead(A0);
+  Serial.print("Muscle activation: ");
+  Serial.println(muscle);                     //muscle value ranges from 0 to 1023
+}
+*/
+
+void loop() {
+
+  Serial.println("");
+  Serial.println("Welcome! Please select a workout type!");
+  Serial.println("Select '2' for cardio");
+  Serial.println("Select '3' for strength");
+  controller = true;
+
+  while (controller) {
+    if (digitalRead(2) == HIGH) {
+      controller = false;
+      cardio();
+    }
+    if (digitalRead(3) == HIGH){
+      controller = false;
+      strength();
+    }
+  }
+}
